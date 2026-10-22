@@ -26,7 +26,7 @@ const navItems: {
   },
 ];
 
-export default function AdminDashboardPage() {
+export default function adminDashboard() {
   return (
     <div
       className="min-h-screen bg-[#12151C] text-[#E8EAEF]"

@@ -1,14 +1,21 @@
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { setAuthToken } from "../auth/authToken";
 
-export default function LoginPage() {
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+export default function userLogin() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [serverError, setServerError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setServerError("");
 
     const nextEmailError = email.trim() ? "" : "Enter your email";
     const nextPasswordError = password.trim() ? "" : "Enter your password";
@@ -18,8 +25,26 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      console.log("submit", { email, password });
+      const response = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Backend sends the same message for "no such user" and
+        // "wrong password" on purpose — just show it as-is.
+        setServerError(data.error ?? "Something went wrong. Try again.");
+        return;
+      }
+
+      console.log("Received token:", data.token); // TEMP — remove once you've confirmed this works
+      setAuthToken(data.token);
+      navigate("/admin");
+    } catch {
+      setServerError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -102,6 +127,10 @@ export default function LoginPage() {
                 </p>
               )}
             </div>
+
+            {serverError && (
+              <p className="mb-4 text-sm text-[#E8756A]">{serverError}</p>
+            )}
 
             <button
               type="submit"

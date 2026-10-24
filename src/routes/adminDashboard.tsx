@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 
-// Mock counts — replace with real queries against the Users/Cards tables later.
+// Mock counts — replace with real queries once the backend exists.
 const stats = [
   { label: "Total users", value: "1,340" },
   { label: "Active cards", value: "1,284" },
@@ -24,9 +24,29 @@ const navItems: {
     title: "Create user",
     description: "Add a new person and issue them a card.",
   },
+  {
+    to: "/admin/classrooms",
+    title: "Classrooms",
+    description: "View all classrooms with their assigned room and teacher.",
+  },
+  {
+    to: "/admin/classrooms/new",
+    title: "Create classroom",
+    description: "Add a new classroom and assign a teacher.",
+  },
+  {
+    to: "/admin/enrollment",
+    title: "Enroll students",
+    description: "Add students to a classroom.",
+  },
+  {
+    to: "/admin/room-access/new",
+    title: "Grant room access",
+    description: "Give someone direct, indefinite access to a room.",
+  },
 ];
 
-export default function adminDashboard() {
+export default function AdminDashboardPage() {
   return (
     <div
       className="min-h-screen bg-[#12151C] text-[#E8EAEF]"

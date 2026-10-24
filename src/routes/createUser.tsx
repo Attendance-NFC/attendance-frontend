@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-type Role = "admin" | "staff" | "member";
+type Role = "admin" | "teacher" | "student";
 type CardStatus = "Active" | "Suspended";
 
 type FormValues = {
   name: string;
   email: string;
+  password: string;
   role: Role;
   cardId: string;
   cardStatus: CardStatus;
@@ -17,12 +18,13 @@ type FormErrors = Partial<Record<keyof FormValues, string>>;
 const initialValues: FormValues = {
   name: "",
   email: "",
-  role: "member",
+  password: "",
+  role: "student",
   cardId: "",
   cardStatus: "Active",
 };
 
-export default function createUser() {
+export default function CreateUserPage() {
   const navigate = useNavigate();
   const [values, setValues] = useState<FormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -38,11 +40,15 @@ export default function createUser() {
     if (!v.name.trim()) next.name = "Enter a name";
     if (!v.email.trim()) next.email = "Enter an email";
     else if (!/^\S+@\S+\.\S+$/.test(v.email)) next.email = "Enter a valid email";
+    if (!v.password) next.password = "Set a temporary password";
+    else if (v.password.length < 8) next.password = "At least 8 characters";
     if (!v.cardId.trim()) next.cardId = "Enter a card ID";
     return next;
   }
 
   // Stub for now — swap in a real POST /admin/users call once the backend is ready.
+  // That endpoint is responsible for hashing `password` with bcrypt before
+  // writing it to Users.password_hash — never send or store it as plain text.
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError("");
@@ -113,14 +119,29 @@ export default function createUser() {
               />
             </Field>
 
+            <Field
+              label="Temporary password"
+              error={errors.password}
+              hint="They'll use this to sign in. Have them change it after."
+            >
+              <input
+                type="password"
+                value={values.password}
+                onChange={(e) => update("password", e.target.value)}
+                className={inputClass(!!errors.password)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+
             <Field label="Role">
               <select
                 value={values.role}
                 onChange={(e) => update("role", e.target.value as Role)}
                 className={inputClass(false)}
               >
-                <option value="member">Member</option>
-                <option value="staff">Staff</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
                 <option value="admin">Admin</option>
               </select>
             </Field>

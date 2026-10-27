@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getAuthToken } from "../auth/authToken";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type Role = "admin" | "teacher" | "student";
 type CardStatus = "Active" | "Suspended";
@@ -46,9 +49,9 @@ export default function CreateUserPage() {
     return next;
   }
 
-  // Stub for now — swap in a real POST /admin/users call once the backend is ready.
-  // That endpoint is responsible for hashing `password` with bcrypt before
-  // writing it to Users.password_hash — never send or store it as plain text.
+  // The backend hashes `password` with bcrypt before writing it to
+  // Users.password_hash — this only ever sends the plain value once, over
+  // HTTPS, and never stores or logs it client-side.
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError("");
@@ -59,11 +62,26 @@ export default function CreateUserPage() {
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      console.log("create user", values);
-      navigate("/admin/users");
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/createUser`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSubmitError(data.error ?? "Something went wrong creating this user. Try again.");
+        return;
+      }
+
+      navigate("/admin");
     } catch {
-      setSubmitError("Something went wrong creating this user. Try again.");
+      setSubmitError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }

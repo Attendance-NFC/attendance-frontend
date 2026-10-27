@@ -1,5 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getAuthToken } from "../auth/authToken";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+type Teacher = {
+  user_id: string;
+  name: string;
+};
 
 type FormValues = {
   name: string;
@@ -13,19 +21,51 @@ const initialValues: FormValues = {
   teacherId: "",
 };
 
-// Mock data — replace with a GET /admin/teachers call (Users filtered by role = teacher).
-const teachers = [
-  { id: "u4", name: "Sam Okafor" },
-  { id: "u7", name: "Priya Singh" },
-  { id: "u9", name: "Jordan Lee" },
-];
-
-export default function CreateClassroom() {
+export default function CreateClassroomPage() {
   const navigate = useNavigate();
   const [values, setValues] = useState<FormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [isLoadingTeachers, setIsLoadingTeachers] = useState(true);
+  const [teachersError, setTeachersError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchTeachers() {
+      setIsLoadingTeachers(true);
+      setTeachersError("");
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_URL}/admin/teachers`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load teachers");
+        }
+
+        const data = (await response.json()) as Teacher[];
+        if (!cancelled) setTeachers(data);
+      } catch {
+        if (!cancelled) {
+          setTeachersError("Couldn't load the teacher list. Try refreshing the page.");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingTeachers(false);
+      }
+    }
+
+    fetchTeachers();
+    return () => {
+      cancelled = true; // avoid setting state if the component unmounts mid-fetch
+    };
+  }, []);
 
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -38,7 +78,6 @@ export default function CreateClassroom() {
     return next;
   }
 
-  // Stub for now — swap in a real POST /admin/classrooms call once the backend is ready.
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError("");
@@ -49,11 +88,29 @@ export default function CreateClassroom() {
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      console.log("create classroom", values);
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/classrooms/createClassroom`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: values.name,
+          teacherId: values.teacherId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSubmitError(data.error ?? "Something went wrong creating this classroom. Try again.");
+        return;
+      }
+
       navigate("/admin/classrooms");
     } catch {
-      setSubmitError("Something went wrong creating this classroom. Try again.");
+      setSubmitError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -98,17 +155,20 @@ export default function CreateClassroom() {
 
           <Field
             label="Teacher"
-            error={errors.teacherId}
+            error={errors.teacherId || teachersError}
             hint="Who this classroom belongs to."
           >
             <select
               value={values.teacherId}
               onChange={(e) => update("teacherId", e.target.value)}
-              className={inputClass(!!errors.teacherId)}
+              disabled={isLoadingTeachers || !!teachersError}
+              className={inputClass(!!errors.teacherId || !!teachersError)}
             >
-              <option value="">Select a teacher…</option>
+              <option value="">
+                {isLoadingTeachers ? "Loading teachers…" : "Select a teacher…"}
+              </option>
               {teachers.map((t) => (
-                <option key={t.id} value={t.id}>
+                <option key={t.user_id} value={t.user_id}>
                   {t.name}
                 </option>
               ))}

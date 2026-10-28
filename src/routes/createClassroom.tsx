@@ -21,7 +21,7 @@ const initialValues: FormValues = {
   teacherId: "",
 };
 
-export default function CreateClassroomPage() {
+export default function CreateClassroom() {
   const navigate = useNavigate();
   const [values, setValues] = useState<FormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors>({});

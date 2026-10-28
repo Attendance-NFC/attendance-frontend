@@ -6,6 +6,7 @@ import ClassroomsList from "./routes/classroomsList";
 import CreateClassroom from "./routes/createClassroom";
 import EnrollStudents from "./routes/enrollStudents";
 import GrantRoomAccess from "./routes/grantRoomAccess";
+import CreateSchedule from "./routes/createSchedule";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/admin/classrooms/new" element={<CreateClassroom />} />
         <Route path="/admin/enrollment" element={<EnrollStudents />} />
         <Route path="/admin/room-access/new" element={<GrantRoomAccess />} />
+        <Route path="/admin/schedule/new" element={<CreateSchedule />} />
         {/* unmatched URLs fall back to the dashboard */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

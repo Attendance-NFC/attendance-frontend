@@ -35,7 +35,7 @@ const navItems: {
     description: "Add a new classroom and assign a teacher.",
   },
   {
-    to: "/admin/enrollment",
+    to: "/admin/enrollments/new",
     title: "Enroll students",
     description: "Add students to a classroom.",
   },
@@ -43,6 +43,11 @@ const navItems: {
     to: "/admin/room-access/new",
     title: "Grant room access",
     description: "Give someone direct, indefinite access to a room.",
+  },
+  {
+    to: "/admin/schedule/new",
+    title: "Create schedule block",
+    description: "Assign a classroom to a room, day, and time.",
   },
 ];
 

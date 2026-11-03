@@ -1,23 +1,13 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getAuthToken } from "../auth/authToken";
 
-// Mock data — replace with GET /admin/classrooms and GET /admin/students.
-const classrooms = [
-  { id: "class_12", name: "Algebra II, 3rd Period" },
-  { id: "class_42", name: "Chemistry, 1st Period" },
-  { id: "class_19", name: "World History, 5th Period" },
-];
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
-const students = [
-  { id: "u1", name: "Alex Morgan", email: "alex.morgan@school.edu" },
-  { id: "u3", name: "Jordan Lee", email: "jordan.lee@school.edu" },
-  { id: "u5", name: "Taylor Reyes", email: "taylor.reyes@school.edu" },
-  { id: "u6", name: "Casey Nguyen", email: "casey.nguyen@school.edu" },
-  { id: "u8", name: "Morgan Patel", email: "morgan.patel@school.edu" },
-  { id: "u10", name: "Riley Kim", email: "riley.kim@school.edu" },
-];
+type Classroom = { classroom_id: string; class_name: string };
+type Student = { user_id: string; name: string; email: string };
 
-export default function EnrollStudents() {
+export default function EnrollStudentsPage() {
   const navigate = useNavigate();
   const [classroomId, setClassroomId] = useState("");
   const [query, setQuery] = useState("");
@@ -26,13 +16,61 @@ export default function EnrollStudents() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+  const [optionsError, setOptionsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchOptions() {
+      setIsLoadingOptions(true);
+      setOptionsError("");
+      try {
+        const token = getAuthToken();
+        const authHeader: Record<string, string> = token
+          ? { Authorization: `Bearer ${token}` }
+          : {};
+
+        const [classroomsRes, studentsRes] = await Promise.all([
+          fetch(`${API_URL}/admin/classrooms`, { headers: authHeader }),
+          fetch(`${API_URL}/admin/students`, { headers: authHeader }),
+        ]);
+
+        if (!classroomsRes.ok || !studentsRes.ok) {
+          throw new Error("Failed to load classrooms or students");
+        }
+
+        const classroomsData = (await classroomsRes.json()) as Classroom[];
+        const studentsData = (await studentsRes.json()) as Student[];
+
+        if (!cancelled) {
+          setClassrooms(classroomsData);
+          setStudents(studentsData);
+        }
+      } catch {
+        if (!cancelled) {
+          setOptionsError("Couldn't load classrooms or students. Try refreshing the page.");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingOptions(false);
+      }
+    }
+
+    fetchOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filteredStudents = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return students;
     return students.filter(
       (s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, students]);
 
   function toggleStudent(id: string) {
     setSelectedIds((prev) => {
@@ -43,7 +81,6 @@ export default function EnrollStudents() {
     });
   }
 
-  // Stub for now — swap in a real POST /admin/enrollments call (batch write) once the backend is ready.
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError("");
@@ -61,15 +98,35 @@ export default function EnrollStudents() {
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      console.log("enroll students", { classroomId, studentIds: [...selectedIds] });
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/enrollments/createEnrollments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          classroomId,
+          studentIds: [...selectedIds],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSubmitError(data.error ?? "Something went wrong enrolling these students. Try again.");
+        return;
+      }
+
       navigate("/admin");
     } catch {
-      setSubmitError("Something went wrong enrolling these students. Try again.");
+      setSubmitError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const optionsDisabled = isLoadingOptions || !!optionsError;
 
   return (
     <div
@@ -93,6 +150,10 @@ export default function EnrollStudents() {
       </header>
 
       <main className="mx-auto max-w-2xl px-6 py-8">
+        {optionsError && (
+          <p className="mb-4 text-sm text-[#E8756A]">{optionsError}</p>
+        )}
+
         <form onSubmit={onSubmit} noValidate>
           <div className="mb-6 border border-[#2A2F3B] bg-[#1B1F29] p-6">
             <label className="mb-1.5 block text-sm text-[#8B93A7]">
@@ -101,12 +162,15 @@ export default function EnrollStudents() {
             <select
               value={classroomId}
               onChange={(e) => setClassroomId(e.target.value)}
+              disabled={optionsDisabled}
               className={inputClass(!!classroomError)}
             >
-              <option value="">Select a classroom…</option>
+              <option value="">
+                {isLoadingOptions ? "Loading classrooms…" : "Select a classroom…"}
+              </option>
               {classrooms.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+                <option key={c.classroom_id} value={c.classroom_id}>
+                  {c.class_name}
                 </option>
               ))}
             </select>
@@ -128,19 +192,20 @@ export default function EnrollStudents() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name or email"
+              disabled={optionsDisabled}
               className={`${inputClass(false)} mb-4`}
             />
 
             <ul className="max-h-80 divide-y divide-[#2A2F3B] overflow-y-auto border border-[#2A2F3B]">
               {filteredStudents.map((s) => {
-                const checked = selectedIds.has(s.id);
+                const checked = selectedIds.has(s.user_id);
                 return (
-                  <li key={s.id}>
+                  <li key={s.user_id}>
                     <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-[#12151C]">
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleStudent(s.id)}
+                        onChange={() => toggleStudent(s.user_id)}
                         className="h-4 w-4 accent-[#E8A33D]"
                       />
                       <span className="flex-1">
@@ -154,7 +219,7 @@ export default function EnrollStudents() {
                 );
               })}
 
-              {filteredStudents.length === 0 && (
+              {!isLoadingOptions && filteredStudents.length === 0 && (
                 <li className="px-3 py-6 text-center text-sm text-[#8B93A7]">
                   No students match "{query}".
                 </li>
@@ -169,7 +234,7 @@ export default function EnrollStudents() {
           <div className="mt-6 flex items-center gap-3">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || optionsDisabled}
               className="bg-[#E8A33D] px-4 py-2 text-sm font-medium text-[#12151C] transition-colors hover:bg-[#F0B25A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8A33D] disabled:opacity-60"
             >
               {isSubmitting

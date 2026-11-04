@@ -1,12 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getAuthToken } from "../auth/authToken";
 
-type Role = "admin" | "staff" | "member";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+type Role = "admin" | "teacher" | "student";
 type CardStatus = "Active" | "Suspended";
 
 type FormValues = {
   name: string;
   email: string;
+  password: string;
   role: Role;
   cardId: string;
   cardStatus: CardStatus;
@@ -17,12 +21,13 @@ type FormErrors = Partial<Record<keyof FormValues, string>>;
 const initialValues: FormValues = {
   name: "",
   email: "",
-  role: "member",
+  password: "",
+  role: "student",
   cardId: "",
   cardStatus: "Active",
 };
 
-export default function createUser() {
+export default function CreateUserPage() {
   const navigate = useNavigate();
   const [values, setValues] = useState<FormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -38,11 +43,15 @@ export default function createUser() {
     if (!v.name.trim()) next.name = "Enter a name";
     if (!v.email.trim()) next.email = "Enter an email";
     else if (!/^\S+@\S+\.\S+$/.test(v.email)) next.email = "Enter a valid email";
+    if (!v.password) next.password = "Set a temporary password";
+    else if (v.password.length < 8) next.password = "At least 8 characters";
     if (!v.cardId.trim()) next.cardId = "Enter a card ID";
     return next;
   }
 
-  // Stub for now — swap in a real POST /admin/users call once the backend is ready.
+  // The backend hashes `password` with bcrypt before writing it to
+  // Users.password_hash — this only ever sends the plain value once, over
+  // HTTPS, and never stores or logs it client-side.
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError("");
@@ -53,11 +62,26 @@ export default function createUser() {
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      console.log("create user", values);
-      navigate("/admin/users");
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/createUser`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSubmitError(data.error ?? "Something went wrong creating this user. Try again.");
+        return;
+      }
+
+      navigate("/admin");
     } catch {
-      setSubmitError("Something went wrong creating this user. Try again.");
+      setSubmitError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -113,14 +137,29 @@ export default function createUser() {
               />
             </Field>
 
+            <Field
+              label="Temporary password"
+              error={errors.password}
+              hint="They'll use this to sign in. Have them change it after."
+            >
+              <input
+                type="password"
+                value={values.password}
+                onChange={(e) => update("password", e.target.value)}
+                className={inputClass(!!errors.password)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </Field>
+
             <Field label="Role">
               <select
                 value={values.role}
                 onChange={(e) => update("role", e.target.value as Role)}
                 className={inputClass(false)}
               >
-                <option value="member">Member</option>
-                <option value="staff">Staff</option>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
                 <option value="admin">Admin</option>
               </select>
             </Field>

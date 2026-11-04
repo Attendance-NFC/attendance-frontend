@@ -7,4 +7,9 @@ export default defineConfig({
   plugins: [react(),
     tailwindcss()
   ],
+  cacheDir: '/tmp/.vite',
+  server: {
+    host: true,
+    port: 5173,
+  },
 })

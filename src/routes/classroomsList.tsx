@@ -1,37 +1,63 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { getAuthToken } from "../auth/authToken";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type Classroom = {
-  id: string;
-  name: string;
-  roomName: string;
-  teacherName: string;
+  classroom_id: string;
+  class_name: string;
+  teacher_id: string;
 };
 
-// Mock data — in practice this is a join your backend does across
-// Classrooms, Schedule (for the room), and Users (for the teacher's name),
-// since Classrooms itself only stores teacher_id, and the room comes from
-// Schedule via the ClassroomScheduleIndex GSI.
-const classrooms: Classroom[] = [
-  { id: "class_12", name: "Algebra II, 3rd Period", roomName: "Room 204", teacherName: "Sam Okafor" },
-  { id: "class_42", name: "Chemistry, 1st Period", roomName: "Science Lab B", teacherName: "Priya Singh" },
-  { id: "class_19", name: "World History, 5th Period", roomName: "Room 118", teacherName: "Jordan Lee" },
-  { id: "class_27", name: "Computer Science, 2nd Period", roomName: "Computer Lab", teacherName: "Priya Singh" },
-];
-
-export default function ClassroomsList() {
+export default function ClassroomsListPage() {
   const [query, setQuery] = useState("");
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchClassrooms() {
+      setIsLoading(true);
+      setError("");
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_URL}/admin/classrooms`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load classrooms");
+        }
+
+        const data = (await response.json()) as Classroom[];
+        if (!cancelled) setClassrooms(data);
+      } catch {
+        if (!cancelled) setError("Couldn't load classrooms. Try refreshing the page.");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    fetchClassrooms();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return classrooms;
     return classrooms.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.roomName.toLowerCase().includes(q) ||
-        c.teacherName.toLowerCase().includes(q)
+        c.class_name.toLowerCase().includes(q) ||
+        c.teacher_id.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, classrooms]);
 
   return (
     <div
@@ -68,42 +94,51 @@ export default function ClassroomsList() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by classroom, room, or teacher"
+            placeholder="Search by classroom or teacher ID"
+            disabled={isLoading || !!error}
             className="w-full max-w-sm border border-[#2A2F3B] bg-[#1B1F29] px-3 py-2 text-sm text-[#E8EAEF] outline-none placeholder:text-[#4A5163] focus-visible:border-[#E8A33D] focus-visible:ring-1 focus-visible:ring-[#E8A33D]"
           />
         </div>
 
-        <div className="overflow-x-auto border border-[#2A2F3B]">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-[#2A2F3B] bg-[#1B1F29] text-left text-[#8B93A7]">
-                <th className="px-4 py-3 font-normal">Classroom</th>
-                <th className="px-4 py-3 font-normal">Room</th>
-                <th className="px-4 py-3 font-normal">Teacher</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-[#2A2F3B] bg-[#1B1F29] last:border-b-0"
-                >
-                  <td className="px-4 py-3">{c.name}</td>
-                  <td className="px-4 py-3 text-[#8B93A7]">{c.roomName}</td>
-                  <td className="px-4 py-3 text-[#8B93A7]">{c.teacherName}</td>
-                </tr>
-              ))}
+        {isLoading && <p className="text-sm text-[#8B93A7]">Loading…</p>}
 
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-[#8B93A7]">
-                    No classrooms match "{query}".
-                  </td>
+        {!isLoading && error && (
+          <p className="text-sm text-[#E8756A]">{error}</p>
+        )}
+
+        {!isLoading && !error && (
+          <div className="overflow-x-auto border border-[#2A2F3B]">
+            <table className="w-full min-w-[640px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-[#2A2F3B] bg-[#1B1F29] text-left text-[#8B93A7]">
+                  <th className="px-4 py-3 font-normal">Classroom</th>
+                  <th className="px-4 py-3 font-normal">Teacher ID</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr
+                    key={c.classroom_id}
+                    className="border-b border-[#2A2F3B] bg-[#1B1F29] last:border-b-0"
+                  >
+                    <td className="px-4 py-3">{c.class_name}</td>
+                    <td className="px-4 py-3 font-mono text-[#8B93A7]">
+                      {c.teacher_id}
+                    </td>
+                  </tr>
+                ))}
+
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={2} className="px-4 py-8 text-center text-[#8B93A7]">
+                      No classrooms match "{query}".
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </main>
     </div>
   );

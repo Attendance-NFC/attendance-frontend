@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { fetchWithAuth } from "../auth/fetchWithAuth";
 
 // Mock data — replace with GET /admin/rooms and GET /admin/users.
 const rooms = [

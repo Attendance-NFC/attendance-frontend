@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAuthToken } from "../auth/authToken";
+import { fetchWithAuth } from "../auth/fetchWithAuth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -23,12 +24,7 @@ export default function ClassroomsListPage() {
       setIsLoading(true);
       setError("");
       try {
-        const token = getAuthToken();
-        const response = await fetch(`${API_URL}/admin/classrooms`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
+        const response = await fetchWithAuth('/admin/classrooms');
 
         if (!response.ok) {
           throw new Error("Failed to load classrooms");

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuthToken } from "../auth/authToken";
+import { fetchWithAuth } from "../auth/fetchWithAuth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -62,12 +63,10 @@ export default function CreateUserPage() {
 
     setIsSubmitting(true);
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_URL}/admin/createUser`, {
+      const response = await fetchWithAuth('/admin/createUser', {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(values),
       });

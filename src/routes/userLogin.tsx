@@ -28,6 +28,10 @@ export default function userLogin() {
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Required so the browser accepts and stores the httpOnly
+        // refreshToken cookie the backend sets on this response — without
+        // this, the cookie is silently dropped on a cross-origin request.
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -40,8 +44,7 @@ export default function userLogin() {
         return;
       }
 
-      console.log("Received token:", data.token); // TEMP — remove once you've confirmed this works
-      setAuthToken(data.token);
+      setAuthToken(data.accessToken);
       navigate("/admin");
     } catch {
       setServerError("Couldn't reach the server. Check your connection and try again.");

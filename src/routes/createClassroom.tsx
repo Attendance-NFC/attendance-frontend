@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuthToken } from "../auth/authToken";
+import { fetchWithAuth } from "../auth/fetchWithAuth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -39,12 +40,7 @@ export default function CreateClassroom() {
       setIsLoadingTeachers(true);
       setTeachersError("");
       try {
-        const token = getAuthToken();
-        const response = await fetch(`${API_URL}/admin/teachers`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
+        const response = await fetchWithAuth('/admin/teachers');
 
         if (!response.ok) {
           throw new Error("Failed to load teachers");
@@ -88,12 +84,10 @@ export default function CreateClassroom() {
 
     setIsSubmitting(true);
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_URL}/admin/classrooms/createClassroom`, {
+      const response = await fetchWithAuth('/admin/classrooms/createClassroom', {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           name: values.name,

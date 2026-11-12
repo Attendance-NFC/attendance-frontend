@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuthToken } from "../auth/authToken";
+import { fetchWithAuth } from "../auth/fetchWithAuth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -28,14 +29,9 @@ export default function EnrollStudentsPage() {
       setIsLoadingOptions(true);
       setOptionsError("");
       try {
-        const token = getAuthToken();
-        const authHeader: Record<string, string> = token
-          ? { Authorization: `Bearer ${token}` }
-          : {};
-
         const [classroomsRes, studentsRes] = await Promise.all([
-          fetch(`${API_URL}/admin/classrooms`, { headers: authHeader }),
-          fetch(`${API_URL}/admin/students`, { headers: authHeader }),
+          fetchWithAuth('/admin/classrooms'),
+          fetchWithAuth('/admin/students'),
         ]);
 
         if (!classroomsRes.ok || !studentsRes.ok) {
@@ -98,12 +94,10 @@ export default function EnrollStudentsPage() {
 
     setIsSubmitting(true);
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_URL}/admin/enrollments/createEnrollments`, {
+      const response = await fetchWithAuth('/admin/enrollments/createEnrollments', {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           classroomId,

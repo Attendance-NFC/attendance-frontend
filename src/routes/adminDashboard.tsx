@@ -1,5 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
+import { fetchWithAuth } from "../auth/fetchWithAuth";
+import { setAuthToken } from "../auth/authToken";
 
 // Mock counts — replace with real queries once the backend exists.
 const stats = [
@@ -52,6 +54,19 @@ const navItems: {
 ];
 
 export default function AdminDashboardPage() {
+  const navigate = useNavigate();
+  async function onSignOut() {
+    try {
+      await fetchWithAuth("/logout", { method: "POST" });
+    } catch {
+      // Even if the request fails (e.g. already logged out elsewhere),
+      // still clear locally and send them to /login below.
+    } finally {
+      setAuthToken(null);
+      navigate("/login");
+    }
+  }
+
   return (
     <div
       className="min-h-screen bg-[#12151C] text-[#E8EAEF]"
@@ -66,7 +81,10 @@ export default function AdminDashboardPage() {
         </h1>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-[#8B93A7]">Admin</span>
-          <button className="text-[#8B93A7] underline decoration-[#2A2F3B] underline-offset-4 hover:text-[#E8EAEF]">
+          <button
+            onClick={onSignOut}
+            className="text-[#8B93A7] underline decoration-[#2A2F3B] underline-offset-4 hover:text-[#E8EAEF]"
+          >
             Sign out
           </button>
         </div>

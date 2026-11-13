@@ -1,22 +1,9 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../auth/fetchWithAuth";
 
-// Mock data — replace with GET /admin/rooms and GET /admin/users.
-const rooms = [
-  { id: "room_12", name: "Room 204" },
-  { id: "room_7", name: "Science Lab B" },
-  { id: "room_3", name: "Computer Lab" },
-];
-
-const users = [
-  { id: "u1", name: "Alex Morgan", email: "alex.morgan@school.edu", role: "student" },
-  { id: "u3", name: "Jordan Lee", email: "jordan.lee@school.edu", role: "student" },
-  { id: "u4", name: "Sam Okafor", email: "sam.okafor@school.edu", role: "admin" },
-  { id: "u5", name: "Taylor Reyes", email: "taylor.reyes@school.edu", role: "student" },
-  { id: "u7", name: "Priya Singh", email: "priya.singh@school.edu", role: "teacher" },
-  { id: "u9", name: "Jordan Nguyen", email: "jordan.nguyen@school.edu", role: "teacher" },
-];
+type Room = { room_id: string; building_id: string }; // attribute names are legacy — both hold name strings directly
+type User = { user_id: string; name: string; email: string; role: string };
 
 export default function GrantRoomAccess() {
   const navigate = useNavigate();
@@ -27,13 +14,56 @@ export default function GrantRoomAccess() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+  const [optionsError, setOptionsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchOptions() {
+      setIsLoadingOptions(true);
+      setOptionsError("");
+      try {
+        const [roomsRes, usersRes] = await Promise.all([
+          fetchWithAuth("/admin/rooms"),
+          fetchWithAuth("/admin/users"),
+        ]);
+
+        if (!roomsRes.ok || !usersRes.ok) {
+          throw new Error("Failed to load rooms or users");
+        }
+
+        const roomsData = (await roomsRes.json()) as Room[];
+        const usersData = (await usersRes.json()) as User[];
+
+        if (!cancelled) {
+          setRooms(roomsData);
+          setUsers(usersData);
+        }
+      } catch {
+        if (!cancelled) {
+          setOptionsError("Couldn't load rooms or users. Try refreshing the page.");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingOptions(false);
+      }
+    }
+
+    fetchOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return users;
     return users.filter(
       (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
     );
-  }, [query]);
+  }, [query, users]);
 
   function toggleUser(id: string) {
     setSelectedIds((prev) => {
@@ -44,7 +74,6 @@ export default function GrantRoomAccess() {
     });
   }
 
-  // Stub for now — swap in a real POST /admin/room-access call (batch write) once the backend is ready.
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitError("");
@@ -62,15 +91,31 @@ export default function GrantRoomAccess() {
 
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      console.log("grant room access", { roomId, userIds: [...selectedIds] });
+      const response = await fetchWithAuth("/admin/roomAccess/createRoomAccess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId,
+          userIds: [...selectedIds],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSubmitError(data.error ?? "Something went wrong granting access. Try again.");
+        return;
+      }
+
       navigate("/admin");
     } catch {
-      setSubmitError("Something went wrong granting access. Try again.");
+      setSubmitError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const optionsDisabled = isLoadingOptions || !!optionsError;
 
   return (
     <div
@@ -94,18 +139,25 @@ export default function GrantRoomAccess() {
       </header>
 
       <main className="mx-auto max-w-2xl px-6 py-8">
+        {optionsError && (
+          <p className="mb-4 text-sm text-[#E8756A]">{optionsError}</p>
+        )}
+
         <form onSubmit={onSubmit} noValidate>
           <div className="mb-6 border border-[#2A2F3B] bg-[#1B1F29] p-6">
             <label className="mb-1.5 block text-sm text-[#8B93A7]">Room</label>
             <select
               value={roomId}
               onChange={(e) => setRoomId(e.target.value)}
+              disabled={optionsDisabled}
               className={inputClass(!!roomError)}
             >
-              <option value="">Select a room…</option>
+              <option value="">
+                {isLoadingOptions ? "Loading rooms…" : "Select a room…"}
+              </option>
               {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
+                <option key={r.room_id} value={r.room_id}>
+                  {r.room_id} — {r.building_id}
                 </option>
               ))}
             </select>
@@ -130,19 +182,20 @@ export default function GrantRoomAccess() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name or email"
+              disabled={optionsDisabled}
               className={`${inputClass(false)} mb-4`}
             />
 
             <ul className="max-h-80 divide-y divide-[#2A2F3B] overflow-y-auto border border-[#2A2F3B]">
               {filteredUsers.map((u) => {
-                const checked = selectedIds.has(u.id);
+                const checked = selectedIds.has(u.user_id);
                 return (
-                  <li key={u.id}>
+                  <li key={u.user_id}>
                     <label className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-[#12151C]">
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={() => toggleUser(u.id)}
+                        onChange={() => toggleUser(u.user_id)}
                         className="h-4 w-4 accent-[#E8A33D]"
                       />
                       <span className="flex-1">
@@ -159,7 +212,7 @@ export default function GrantRoomAccess() {
                 );
               })}
 
-              {filteredUsers.length === 0 && (
+              {!isLoadingOptions && filteredUsers.length === 0 && (
                 <li className="px-3 py-6 text-center text-sm text-[#8B93A7]">
                   No one matches "{query}".
                 </li>
@@ -174,7 +227,7 @@ export default function GrantRoomAccess() {
           <div className="mt-6 flex items-center gap-3">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || optionsDisabled}
               className="bg-[#E8A33D] px-4 py-2 text-sm font-medium text-[#12151C] transition-colors hover:bg-[#F0B25A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8A33D] disabled:opacity-60"
             >
               {isSubmitting

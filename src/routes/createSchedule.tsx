@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getAuthToken } from "../auth/authToken";
+import { fetchWithAuth } from "../auth/fetchWithAuth";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -56,8 +57,8 @@ export default function CreateSchedulePage() {
         const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
         const [roomsRes, classroomsRes] = await Promise.all([
-          fetch(`${API_URL}/admin/rooms`, { headers: authHeader }),
-          fetch(`${API_URL}/admin/classrooms`, { headers: authHeader }),
+            fetchWithAuth('/admin/rooms'),
+            fetchWithAuth('/admin/classrooms'),
         ]);
 
         if (!roomsRes.ok || !classroomsRes.ok) {
@@ -112,12 +113,10 @@ export default function CreateSchedulePage() {
 
     setIsSubmitting(true);
     try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_URL}/admin/schedule/createSchedule`, {
+      const response = await fetchWithAuth('/admin/schedule/createSchedule', {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           roomName: values.roomName,

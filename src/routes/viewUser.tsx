@@ -53,6 +53,13 @@ export default function ViewUser() {
   const [revokingRoomId, setRevokingRoomId] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState("");
 
+  // Same pattern, for removing a single scheduled class meeting. Keyed by
+  // "room_id|day_of_week|start_time" since classroom_id alone isn't unique
+  // across a classroom's multiple weekly meetings.
+  const [confirmingScheduleKey, setConfirmingScheduleKey] = useState<string | null>(null);
+  const [revokingScheduleKey, setRevokingScheduleKey] = useState<string | null>(null);
+  const [scheduleRevokeError, setScheduleRevokeError] = useState("");
+
   async function fetchProfile() {
     setIsLoading(true);
     setError("");
@@ -99,6 +106,36 @@ export default function ViewUser() {
     } finally {
       setRevokingRoomId(null);
       setConfirmingRoomId(null);
+    }
+  }
+
+  async function onConfirmRemoveSchedule(
+    roomId: string,
+    dayOfWeek: string,
+    startTime: string,
+    key: string
+  ) {
+    setScheduleRevokeError("");
+    setRevokingScheduleKey(key);
+    try {
+      const response = await fetchWithAuth(
+        `/admin/schedule/${roomId}/${dayOfWeek}/${startTime}`,
+        { method: "DELETE" }
+      );
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to remove this class meeting");
+      }
+
+      await fetchProfile();
+    } catch (err) {
+      setScheduleRevokeError(
+        (err as Error).message || "Couldn't remove this class meeting. Try again."
+      );
+    } finally {
+      setRevokingScheduleKey(null);
+      setConfirmingScheduleKey(null);
     }
   }
 
@@ -244,17 +281,67 @@ export default function ViewUser() {
               >
                 Classes
               </h2>
+              {scheduleRevokeError && (
+                <p className="mb-3 text-sm text-[#E8756A]">{scheduleRevokeError}</p>
+              )}
               {profile.classrooms.length > 0 ? (
                 <ul className="divide-y divide-[#2A2F3B]">
-                  {profile.classrooms.map((c) => (
-                    <li key={c.classroom_id} className="py-3 first:pt-0 last:pb-0">
-                      <p className="text-sm">{c.class_name}</p>
-                      <p className="text-sm text-[#8B93A7]">
-                        {c.room_id} · {dayLabels[c.day_of_week] ?? c.day_of_week}{" "}
-                        {c.start_time}–{c.end_time}
-                      </p>
-                    </li>
-                  ))}
+                  {profile.classrooms.map((c) => {
+                    // Unique per meeting, not per classroom — a class meeting
+                    // twice a week produces two rows with two different keys.
+                    const key = `${c.room_id}|${c.day_of_week}|${c.start_time}`;
+                    const isConfirming = confirmingScheduleKey === key;
+                    const isRevoking = revokingScheduleKey === key;
+
+                    return (
+                      <li
+                        key={key}
+                        className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                      >
+                        <div>
+                          <p className="text-sm">{c.class_name}</p>
+                          <p className="text-sm text-[#8B93A7]">
+                            {c.room_id} · {dayLabels[c.day_of_week] ?? c.day_of_week}{" "}
+                            {c.start_time}–{c.end_time}
+                          </p>
+                        </div>
+
+                        {isConfirming ? (
+                          <div className="flex shrink-0 items-center gap-3">
+                            <span className="text-sm text-[#8B93A7]">Remove?</span>
+                            <button
+                              onClick={() =>
+                                onConfirmRemoveSchedule(
+                                  c.room_id,
+                                  c.day_of_week,
+                                  c.start_time,
+                                  key
+                                )
+                              }
+                              disabled={isRevoking}
+                              className="text-sm font-medium text-[#E8756A] hover:text-[#f08b80] disabled:opacity-60"
+                            >
+                              {isRevoking ? "Removing…" : "Confirm"}
+                            </button>
+                            <button
+                              onClick={() => setConfirmingScheduleKey(null)}
+                              disabled={isRevoking}
+                              className="text-sm text-[#8B93A7] hover:text-[#E8EAEF]"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmingScheduleKey(key)}
+                            className="shrink-0 text-sm text-[#E8756A] underline decoration-[#2A2F3B] underline-offset-4 hover:text-[#f08b80]"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="text-sm text-[#8B93A7]">

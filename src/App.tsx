@@ -9,6 +9,7 @@ import EnrollStudents from "./routes/enrollStudents";
 import GrantRoomAccess from "./routes/grantRoomAccess";
 import CreateSchedule from "./routes/createSchedule";
 import ViewUser from './routes/viewUser';
+import ViewProfile from "./routes/viewProfile";
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/admin/room-access/new" element={<GrantRoomAccess />} />
         <Route path="/admin/schedule/new" element={<CreateSchedule />} />
         <Route path="/admin/users/:userId" element={<ViewUser />} />
+        <Route path="/student" element={<ViewProfile />} />
 
         {/* unmatched URLs fall back to the dashboard */}
         <Route path="*" element={<Navigate to="/login" replace />} />

@@ -45,7 +45,22 @@ export default function userLogin() {
       }
 
       setAuthToken(data.accessToken);
-      navigate("/admin");
+
+      switch (data.user?.role) {
+        case "admin":
+          navigate("/admin");
+          break;
+        case "teacher":
+          navigate("/teacherProfile"); // not built yet — route doesn't exist
+          break;
+        case "student":
+          navigate("/student");
+          break;
+        default:
+          // Unknown/missing role — shouldn't happen if the backend is
+          // behaving, but fail safely rather than navigating anywhere.
+          setServerError("Couldn't determine where to send you. Contact IT.");
+      }
     } catch {
       setServerError("Couldn't reach the server. Check your connection and try again.");
     } finally {

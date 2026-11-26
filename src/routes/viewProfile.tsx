@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../auth/fetchWithAuth";
 import { setAuthToken } from "../auth/authToken";
+import { getCsrfToken } from "../auth/csrfToken";
 
 type CardStatus = "Active" | "Suspended" | "Expired" | "Revoked";
 
@@ -51,7 +52,11 @@ export default function viewProfile() {
 
   async function onSignOut() {
     try {
-      await fetchWithAuth("/logout", { method: "POST" });
+      const csrfToken = getCsrfToken();
+      await fetchWithAuth("/logout", {
+        method: "POST",
+        headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
+      });
     } catch {
       // Even if the request fails, still clear locally and redirect below.
     } finally {

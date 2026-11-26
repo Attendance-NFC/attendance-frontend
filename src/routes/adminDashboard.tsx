@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { fetchWithAuth } from "../auth/fetchWithAuth";
 import { setAuthToken } from "../auth/authToken";
+import { getCsrfToken } from "../auth/csrfToken";
 
 // Mock counts — replace with real queries once the backend exists.
 const stats = [
@@ -57,7 +58,11 @@ export default function AdminDashboardPage() {
   const navigate = useNavigate();
   async function onSignOut() {
     try {
-      await fetchWithAuth("/logout", { method: "POST" });
+      const csrfToken = getCsrfToken();
+      await fetchWithAuth("/logout", {
+        method: "POST",
+        headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
+      });     
     } catch {
       // Even if the request fails (e.g. already logged out elsewhere),
       // still clear locally and send them to /login below.

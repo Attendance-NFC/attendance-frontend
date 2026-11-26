@@ -1,4 +1,5 @@
 import { getAuthToken, setAuthToken } from "./authToken";
+import { getCsrfToken } from "./csrfToken";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -11,9 +12,12 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
+        const csrfToken = getCsrfToken();
         const response = await fetch(`${API_URL}/refresh`, {
           method: "POST",
           credentials: "include", // sends the httpOnly refreshToken cookie automatically
+          headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
+
         });
 
         if (!response.ok) return null;

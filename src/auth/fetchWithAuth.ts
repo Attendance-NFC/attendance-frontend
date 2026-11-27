@@ -1,7 +1,7 @@
 import { getAuthToken, setAuthToken } from "./authToken";
 import { getCsrfToken } from "./csrfToken";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 
 // Prevents multiple simultaneous 401s (e.g. several requests firing at
 // once) from each independently calling /refresh — they all share one

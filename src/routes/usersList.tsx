@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getAuthToken } from "../auth/authToken";
 import { fetchWithAuth } from "../auth/fetchWithAuth";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type CardStatus = "Active" | "Suspended" | "Expired" | "Revoked";
 

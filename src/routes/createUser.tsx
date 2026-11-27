@@ -1,9 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getAuthToken } from "../auth/authToken";
 import { fetchWithAuth } from "../auth/fetchWithAuth";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type Role = "admin" | "teacher" | "student";
 type CardStatus = "Active" | "Suspended";

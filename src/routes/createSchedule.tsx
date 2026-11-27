@@ -1,9 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getAuthToken } from "../auth/authToken";
 import { fetchWithAuth } from "../auth/fetchWithAuth";
-
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 type Room = { room_id: string; building_id: string }; // attribute names are legacy — both hold name strings directly, not generated IDs
 type Classroom = { classroom_id: string; class_name: string };
@@ -53,9 +50,6 @@ export default function CreateSchedulePage() {
       setIsLoadingOptions(true);
       setOptionsError("");
       try {
-        const token = getAuthToken();
-        const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-
         const [roomsRes, classroomsRes] = await Promise.all([
             fetchWithAuth('/admin/rooms'),
             fetchWithAuth('/admin/classrooms'),

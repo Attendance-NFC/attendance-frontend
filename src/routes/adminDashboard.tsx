@@ -2,15 +2,6 @@ import { Link, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { fetchWithAuth } from "../auth/fetchWithAuth";
 import { setAuthToken } from "../auth/authToken";
-import { getCsrfToken } from "../auth/csrfToken";
-
-// Mock counts — replace with real queries once the backend exists.
-const stats = [
-  { label: "Total users", value: "1,340" },
-  { label: "Active cards", value: "1,284" },
-  { label: "Suspended cards", value: "19" },
-  { label: "Expired or revoked", value: "37" },
-];
 
 const navItems: {
   to: string;
@@ -56,13 +47,10 @@ const navItems: {
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+
   async function onSignOut() {
     try {
-      const csrfToken = getCsrfToken();
-      await fetchWithAuth("/logout", {
-        method: "POST",
-        headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {},
-      });     
+      await fetchWithAuth("/logout", { method: "POST" });
     } catch {
       // Even if the request fails (e.g. already logged out elsewhere),
       // still clear locally and send them to /login below.
@@ -96,21 +84,6 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-8">
-        {/* Stats row */}
-        <section className="mb-8 grid grid-cols-2 gap-px border border-[#2A2F3B] bg-[#2A2F3B] sm:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="bg-[#1B1F29] p-5">
-              <p
-                className="text-2xl font-medium"
-                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-              >
-                {s.value}
-              </p>
-              <p className="mt-1 text-sm text-[#8B93A7]">{s.label}</p>
-            </div>
-          ))}
-        </section>
-
         {/* Navigation */}
         <h2 className="mb-4 text-sm text-[#8B93A7]">Manage</h2>
         <div className="grid gap-4 sm:grid-cols-2">
